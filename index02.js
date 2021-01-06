@@ -13,11 +13,16 @@ const mkdir = util.promisify(fs.mkdir);
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
+const axios = require('axios');
+const { resolve } = require('path');
+
 //callback
 //promise
 //async await
 
 let arrLink = [];
+
+
 
 async function searchKeyword(){
     console.log('start to searching...')
@@ -138,6 +143,43 @@ async function scrollPage(){
     }
 }
 
+async function donloadImgs(){
+    let data = JSON.parse(await readFile("output/gopro.json"))
+    // console.log('data',data);
+
+    for (let i = 0; i < data.length; i++){
+        console.log('donloadImgs i=',i);
+        let rootDir = './img';
+        if(!fs.existsSync(rootDir)) fs.mkdirSync(rootDir);
+
+        const keyword = "./img/" + "gopro"
+        if(!fs.existsSync(keyword)) fs.mkdirSync(keyword);
+
+        let picsDir = "./img/gopro/" +  data[i].name.replace(/\//g,"");
+        if(!fs.existsSync(picsDir)) fs.mkdirSync(picsDir);
+
+        for (let picNum = 0; picNum < data[i].pics.length; picNum++){
+            const url = data[i].pics[picNum];
+            const filename = picsDir + "/" + picNum +".jpg";
+
+            await downloadEachPic(url, filename);
+        }
+    }
+}
+
+const downloadEachPic = (url, filename) => {
+    axios({
+        url,
+        responseType: "stream"
+    }).then(response => 
+        new Promise((resolve, reject) =>{
+            response.data.pipe(fs.createWriteStream(filename))
+            .on("finish", ()=> resolve())
+            .on("error", e => reject(e))
+        })    
+    )
+}
+
 async function writeJson(){
     if(!fs.existsSync("output")){
         await mkdir("output", { recursive: true})
@@ -165,7 +207,7 @@ async function asyncArray(functionList){
 
 
 try{
-    asyncArray([searchKeyword, parseHtml, getData, close]).then(async ()=> { console.log('Done.')});
+    asyncArray([donloadImgs]).then(async ()=> { console.log('Done.')});
 } catch(err){
     console.log('err:',err);
 }
